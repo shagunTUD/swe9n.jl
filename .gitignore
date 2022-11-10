@@ -6,8 +6,9 @@
 data
 videos
 plots
-notebooks
+#notebooks
 _research
+test
 
 ################################################################################
 #                                    Julia                                     #
