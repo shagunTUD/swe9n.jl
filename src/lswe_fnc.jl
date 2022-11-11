@@ -3,6 +3,7 @@ using Printf
 using LineSearches: BackTracking
 using CSV
 using Tables
+using Revise
 
 include("dispersion.jl")
 
@@ -21,7 +22,7 @@ function lswe_setup(domX, domY, dx, dy, inletEta, inletU,
     add_tag_from_tags!(labels, "inlet", [7,1,3])
     add_tag_from_tags!(labels, "outlet", ["tag_8","tag_2","tag_4"])
     add_tag_from_tags!(labels, "sideWall", ["tag_5","tag_6"])
-    writevtk(model, "test/model")
+    writevtk(model, "output/model")
 
 
     # Define Test Fnc
@@ -90,14 +91,26 @@ function lswe_setup(domX, domY, dx, dy, inletEta, inletU,
     lDa = zeros(Float64, 1, numP*5+1)
     probeDa[1,1] = t0
 
+
+    createpvd(probname) do pvd
+        ηh, uh = x0
+        tval = @sprintf("%5.3f",t0)                
+        println("Time : $tval")
+        tval = @sprintf("%d",floor(Int64,t0*1000))                
+        pvd[t0] = createvtk(Ω,probname*"_$tval"*".vtu",
+            cellfields=["eta"=>ηh, "u"=>uh, "h0"=>-h0])            
+    end
+
+
     # Execute
-    createpvd(probname) do pvd    
+    createpvd(probname, append=true) do pvd    
         cnt=0
         for (solh, t) in solnht                       
             cnt = cnt+1
             ηh, uh = solh
             tval = @sprintf("%5.3f",t)                
             println("Time : $tval")
+            tval = @sprintf("%d",floor(Int64,t*1000))                
 
             lDa[1] = t
             for ip in 1:numP
@@ -116,7 +129,7 @@ function lswe_setup(domX, domY, dx, dy, inletEta, inletU,
                 continue
             end
             pvd[t] = createvtk(Ω,probname*"_$tval"*".vtu",
-                cellfields=["eta"=>ηh, "u"=>uh, "h0"=>h0])            
+                cellfields=["eta"=>ηh, "u"=>uh, "h0"=>-h0])            
         end
     end 
     
@@ -129,11 +142,11 @@ end
 g = 9.81
 T = 10.0; #s
 h = 1.0; #m
-H = 0.2; #m
+H = 0.05; #m
 L = dispersionRel(g, h, T)
 k = VectorValue(2*π/L*cos(0), 2*π/L*sin(0))
 ω = 2*π/T;
-probname = joinpath("test/lswe_W04")
+probname = joinpath("output/lswe_W01")
 
 probesxy = [Point(12.0, 5.0)
             Point(24.0, 5.0)

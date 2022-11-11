@@ -21,7 +21,7 @@ function nlswe_setup(domX, domY, dx, dy, h, H,
     add_tag_from_tags!(labels, "outlet", 
         ["tag_8","tag_2","tag_4","tag_7","tag_1","tag_3"])
     add_tag_from_tags!(labels, "sideWall", ["tag_5","tag_6"])
-    writevtk(model, "test/model")
+    writevtk(model, "output/model")
 
 
     # Define Test Fnc
@@ -133,7 +133,7 @@ end
 g = 9.81
 h = 0.45; #m
 H = 0.045;
-probname = joinpath("test/gauss_T01")
+probname = joinpath("output/gauss_T01")
 
 probesxy = [Point(0.0, 0.0)
             Point(1.0, 0.0)
