@@ -1,11 +1,13 @@
 using Gridap
 using Test
+using Revise
 
 # Analytical functions
 u(x,t) = (1.0-x[1])*x[1]*(t^2+3.0)
 u(t::Real) = x -> u(x,t)
 v(t::Real) = ∂t(u)(t)
 a(t::Real) = ∂tt(u)(t)
+f(t) = x -> ∂tt(u)(x,t) + ∂t(u)(x,t) - Δ(u(t))(x)
 
 
 domain = (0,1)
@@ -21,6 +23,7 @@ U = TransientTrialFESpace(V0,u)
 Ω = Triangulation(model)
 degree = 2*order
 dΩ = Measure(Ω,degree)
+b0 = Boundary(Ω)
 
 
 m(utt,v) = ∫(v*utt)dΩ
@@ -36,7 +39,7 @@ jac(t,u,du,v) = a(du,v)
 jac_t(t,u,dut,v) = c(dut,v)
 jac_tt(t,u,dutt,v) = m(dutt,v)
 
-op_AD = TransientFEOperator(res,U,V0)
+op_AD = TransientFEOperator(res,U,V0; order=2)
 op = TransientFEOperator(res,jac,jac_t,jac_tt,U,V0)
 
 t0 = 0.0
@@ -54,8 +57,9 @@ ah0 = interpolate_everywhere(a(0.0),U0)
 ls = LUSolver()
 ode_solver = Newmark(ls,dt,γ,β)
 
-sol_t = solve(ode_solver,op,(uh0,vh0,ah0),t0,tF)
+sol_t = solve(ode_solver,op_AD,(uh0,vh0,ah0),t0,tF)
+#sol_t = solve(ode_solver,op,uh0,t0,tF)
 
 for (uh_tn, tn) in sol_t
-    println(tn)
-  end
+  println(tn)
+end

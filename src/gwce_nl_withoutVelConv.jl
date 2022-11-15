@@ -88,21 +88,48 @@ function gwce_setup(domX, domY, dx, dy, ha, inletη, inletP,
     dΩ = Measure(Ω, 2*order)
 
 
-    # Intermediate Functions
-    sc2a(p,h) = 1.0/h*(∇⋅p) - 1.0/(h*h)*(p⋅∇(h))
+    # # Intermediate Functions
+    # sc2a(p,h) = 1.0/h*(∇)
 
 
-    # Weak form    
+    # Weak form
+    # Not including the vel convection term in the J eqn
+    # Writing the residual and the jacobians for my ref
+    # The object op and op_AD are respectively for a call
+    # without and with the use of automatic differentiation
+    # Note: You are using 2nd order deriv for time.
+    # So you have to specify order=2, so that the 
+    # function knows that it has to compute the Jacobians
+    # jac_t and jac_tt. By defualt, order=1
+    # you can see this in definition of TransientFEOperator() 
+    # in Gridap, TransientFEOperators.jl
+    # Here, the line 204 has a loop for i in 1:order to compute
+    # the required Jacobians in time.
     # ---------------------Start---------------------
     res(t, (η, j, p), (ψ1, ψ2, ψ3)) =
         ∫( ∂tt(η)*ψ1 )dΩ + 
         ∫( ∂t(η)*τ*ψ1 + g*(h0+η)*∇(ψ1)⋅∇(η) 
             - ψ1*∇(τ)⋅p - ∇(ψ1)⋅j )dΩ + 
-        ∫( ψ2⋅j + 0.5*g*(ψ2⋅∇(η*η)) - (ψ2⋅p)*τ )dΩ +
-        ∫( ψ2⋅(∇(p)'⋅p)/(h0+η) )dΩ +
-        ∫( ψ2⋅(sc2a(p,(h0+η))*p) )dΩ +
-        ∫( ∂t(p)⋅ψ3 - ψ3⋅j + (ψ3⋅p)*τ + g*(h0+η)*(ψ3⋅∇(η)) )dΩ    
-         
+        ∫( ψ2⋅j + 0.5*g*(ψ2⋅∇(η*η)) - (ψ2⋅p)*τ )dΩ +         
+        ∫( ∂t(p)⋅ψ3 - ψ3⋅j + (ψ3⋅p)*τ + g*(h0+η)*(ψ3⋅∇(η)) )dΩ
+    
+
+    jac(t, (η, j, p), (dη, dj, dp), (ψ1, ψ2, ψ3)) = 
+        ∫( g*(h0+η)*∇(ψ1)⋅∇(dη) + g*(dη)*∇(ψ1)⋅∇(η) - ψ1*∇(τ)⋅dp - ∇(ψ1)⋅dj )dΩ + 
+        ∫( ψ2⋅dj + g*(ψ2⋅∇(η)*dη + ψ2⋅∇(dη)*η) - (ψ2⋅dp)*τ )dΩ + 
+        ∫( - ψ3⋅dj + (ψ3⋅dp)*τ + g*(h0+η)*(ψ3⋅∇(dη)) + g*dη*(ψ3⋅∇(η)) )dΩ
+
+
+    jac_t(t, (η, j, p), (dηt, djt, dpt), (ψ1, ψ2, ψ3)) = 
+        ∫( dηt*τ*ψ1 )dΩ + 
+        ∫( dpt⋅ψ3 )dΩ 
+
+
+    jac_tt(t, (η, j, p), (dηtt, djtt, dptt), (ψ1, ψ2, ψ3)) = 
+        ∫( dηtt*ψ1 )dΩ
+
+    
+    op = TransientFEOperator(res, jac, jac_t, jac_tt, X, Y)    
     op_AD = TransientFEOperator(res, X, Y; order=2)    
     # ----------------------End----------------------
 
@@ -191,7 +218,7 @@ H = 0.05; #m
 L = dispersionRel(g, h, T)
 k = 2*π/L;
 ω = 2*π/T;
-probname = joinpath("output/gwce_nw_nl_W01")
+probname = joinpath("output/gwce_nw_nl_withoutVelConv_W01")
 
 probesxy = [Point(12.0, 5.0)
             Point(24.0, 5.0)

@@ -88,22 +88,32 @@ function gwce_setup(domX, domY, dx, dy, ha, inletη, inletP,
     dΩ = Measure(Ω, 2*order)
 
 
-    # Intermediate Functions
-    sc2a(p,h) = 1.0/h*(∇⋅p) - 1.0/(h*h)*(p⋅∇(h))
-
-
-    # Weak form    
-    # ---------------------Start---------------------
-    res(t, (η, j, p), (ψ1, ψ2, ψ3)) =
+    # Weak form
+    # ---------------------Start---------------------      
+    lres(t, (η, j, p), (ψ1, ψ2, ψ3)) =
         ∫( ∂tt(η)*ψ1 )dΩ + 
-        ∫( ∂t(η)*τ*ψ1 + g*(h0+η)*∇(ψ1)⋅∇(η) 
+        ∫( ∂t(η)*τ*ψ1 + g*(h0)*∇(ψ1)⋅∇(η) 
             - ψ1*∇(τ)⋅p - ∇(ψ1)⋅j )dΩ + 
-        ∫( ψ2⋅j + 0.5*g*(ψ2⋅∇(η*η)) - (ψ2⋅p)*τ )dΩ +
-        ∫( ψ2⋅(∇(p)'⋅p)/(h0+η) )dΩ +
-        ∫( ψ2⋅(sc2a(p,(h0+η))*p) )dΩ +
-        ∫( ∂t(p)⋅ψ3 - ψ3⋅j + (ψ3⋅p)*τ + g*(h0+η)*(ψ3⋅∇(η)) )dΩ    
-         
-    op_AD = TransientFEOperator(res, X, Y; order=2)    
+        ∫( ψ2⋅j - (ψ2⋅p)*τ )dΩ + 
+        ∫( ∂t(p)⋅ψ3 - ψ3⋅j + (ψ3⋅p)*τ + g*(h0)*(ψ3⋅∇(η)) )dΩ
+
+    
+    jac(t, (η, j, p), (dη, dj, dp), (ψ1, ψ2, ψ3)) = 
+        ∫( g*(h0)*∇(ψ1)⋅∇(dη) - ψ1*∇(τ)⋅dp - ∇(ψ1)⋅dj )dΩ + 
+        ∫( ψ2⋅dj - (ψ2⋅dp)*τ )dΩ + 
+        ∫( - ψ3⋅dj + (ψ3⋅dp)*τ + g*(h0)*(ψ3⋅∇(dη)) )dΩ
+
+
+    jac_t(t, (η, j, p), (dηt, djt, dpt), (ψ1, ψ2, ψ3)) = 
+        ∫( dηt*τ*ψ1 )dΩ + 
+        ∫( dpt⋅ψ3 )dΩ 
+
+
+    jac_tt(t, (η, j, p), (dηtt, djtt, dptt), (ψ1, ψ2, ψ3)) = 
+        ∫( dηtt*ψ1 )dΩ
+    
+    lop = TransientFEOperator(lres, jac, jac_t, jac_tt, X, Y)
+    lop_AD = TransientFEOperator(lres, X, Y)
     # ----------------------End----------------------
 
 
@@ -116,14 +126,15 @@ function gwce_setup(domX, domY, dx, dy, ha, inletη, inletP,
     x0tt = interpolate_everywhere(
         [0.0, VectorValue(0.0,0.0), VectorValue(0.0,0.0)], X(t0))
     
-    
-    # NL Solver    
-    nls = NLSolver(show_trace=true, 
-        method=:newton, linesearch=BackTracking())
-    ode_solver = Newmark(nls, simΔt, 0.5, 0.25)        
-    solnht = solve(ode_solver, op_AD, (x0,x0t,x0tt), t0, simT)    
 
-    
+    # Lin Solver
+    ls = LUSolver()
+    ode_solver = Newmark(ls, simΔt, 0.5, 0.25)
+    #ode_solver = ThetaMethod(ls, simΔt, 0.5)    
+    #solnht = solve(ode_solver, lop, x0, t0, simT)
+    solnht = solve(ode_solver, lop, (x0, x0t, x0tt), t0, simT)
+
+
     # Probe setup
     numP = length(probesxy)    
     probeDa = zeros(Float64, 1, numP*5+1)    
@@ -191,7 +202,7 @@ H = 0.05; #m
 L = dispersionRel(g, h, T)
 k = 2*π/L;
 ω = 2*π/T;
-probname = joinpath("output/gwce_nw_nl_W01")
+probname = joinpath("output/gwce_nw_lin_W01")
 
 probesxy = [Point(12.0, 5.0)
             Point(24.0, 5.0)
