@@ -23,7 +23,7 @@ function gwce_setup(domX, domY, dx, dy, ha, inletη, inletP,
     add_tag_from_tags!(labels, "inlet", ["tag_7","tag_1","tag_3"])
     add_tag_from_tags!(labels, "outlet", ["tag_8","tag_2","tag_4"])
     add_tag_from_tags!(labels, "sideWall", ["tag_5","tag_6"])
-    writevtk(model, "output/model")
+    writevtk(model, probname*"_model")
 
 
     # Define Test Fnc
@@ -119,8 +119,9 @@ function gwce_setup(domX, domY, dx, dy, ha, inletη, inletP,
     
     # NL Solver    
     nls = NLSolver(show_trace=true, 
-        method=:newton, linesearch=BackTracking())
-    ode_solver = Newmark(nls, simΔt, 0.5, 0.25)        
+        method=:newton, linesearch=BackTracking(), iterations=10)
+    #ode_solver = Newmark(nls, simΔt, 0.5, 0.25)        
+    ode_solver = GeneralizedAlpha(nls, simΔt, 0.0)    
     solnht = solve(ode_solver, op_AD, (x0,x0t,x0tt), t0, simT)    
 
     
@@ -182,7 +183,7 @@ function gwce_setup(domX, domY, dx, dy, ha, inletη, inletP,
 end
 
 
-##
+#
 # Run simulation
 g = 9.81
 T = 10.0; #s
@@ -191,7 +192,7 @@ H = 0.05; #m
 L = dispersionRel(g, h, T)
 k = 2*π/L;
 ω = 2*π/T;
-probname = joinpath("output/gwce_nw_nl_W01")
+probname = joinpath("output/gwce_ga_nl_W01")
 
 probesxy = [Point(12.0, 5.0)
             Point(24.0, 5.0)
