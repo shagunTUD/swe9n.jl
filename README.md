@@ -26,3 +26,4 @@ using DrWatson
 @quickactivate "swe9n.jl"
 ```
 which auto-activate the project and enable local path handling from DrWatson.
+
